@@ -1,13 +1,13 @@
-export interface HelloPayload {
+export interface BackendStatusPayload {
   message: string
   time: string
 }
 
-export function buildGreeting(name: string) {
-  return `Hello, ${name}!`
+export function buildBackendStatusMessage() {
+  return 'Agent Telemetry backend'
 }
 
-export function formatBackendStatus(payload?: HelloPayload) {
+export function formatBackendStatus(payload?: BackendStatusPayload) {
   if (!payload) {
     return {
       title: 'Waiting',

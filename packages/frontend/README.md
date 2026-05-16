@@ -91,13 +91,13 @@ Go to the project directory
 Install dependencies
 
 ```bash
-  pnpm install
+  bun install
 ```
 
 Start the server
 
 ```bash
-  pnpm run dev
+  bun run dev
 ```
 
 ## Sponsoring this project ❤️

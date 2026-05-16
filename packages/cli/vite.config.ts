@@ -1,13 +1,7 @@
-import { readFileSync } from 'node:fs'
-import { builtinModules } from 'node:module'
-import { resolve } from 'node:path'
-import { fileURLToPath } from 'node:url'
 import { defineConfig } from 'vite'
+import pkg from './package.json' with { type: 'json' }
 
-const rootDir = fileURLToPath(new URL('.', import.meta.url))
-const pkg = JSON.parse(readFileSync(resolve(rootDir, 'package.json'), 'utf-8')) as {
-  version: string
-}
+const rootDir = import.meta.dirname
 
 export default defineConfig({
   define: {
@@ -16,20 +10,19 @@ export default defineConfig({
   build: {
     target: 'es2022',
     lib: {
-      entry: resolve(rootDir, 'src/cli.ts'),
+      entry: `${rootDir}/src/cli.ts`,
       formats: ['es'],
       fileName: () => 'cli.js'
     },
     rollupOptions: {
       external: [
-        '@auto-code/core',
-        ...builtinModules,
-        ...builtinModules.map((module) => `node:${module}`)
+        '@agent-telemetry/core',
+        'commander',
       ],
       output: {
-        banner: '#!/usr/bin/env node',
+        banner: '#!/usr/bin/env bun',
         paths: {
-          '@auto-code/core': './core/index.js'
+          '@agent-telemetry/core': './core/index.js'
         }
       }
     },

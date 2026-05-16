@@ -6,9 +6,9 @@
     "moduleResolution": "bundler",
     "lib": ["ES2022"],
     "paths": {
-      "@auto-code/core": ["packages/core/src/index.ts"]
+      "@agent-telemetry/core": ["packages/core/src/index.ts"]
     },
-    "types": ["node"],
+    "types": ["bun"],
     "strict": true,
     "skipLibCheck": true,
     "noUnusedLocals": true,

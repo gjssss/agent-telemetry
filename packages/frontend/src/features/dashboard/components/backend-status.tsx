@@ -1,24 +1,19 @@
 import { useQuery } from '@tanstack/react-query'
-import { formatBackendStatus } from '@auto-code/core'
+import { type BackendStatusPayload, formatBackendStatus } from '@agent-telemetry/core'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 
-type BackendHello = {
-  message: string
-  time: string
-}
-
-async function fetchBackendHello(): Promise<BackendHello> {
+async function fetchBackendStatus(): Promise<BackendStatusPayload> {
   const response = await fetch('/api/hello')
   if (!response.ok) {
     throw new Error('Failed to fetch backend status')
   }
-  return response.json() as Promise<BackendHello>
+  return response.json() as Promise<BackendStatusPayload>
 }
 
 export function BackendStatus() {
   const { data, isLoading, isError } = useQuery({
-    queryKey: ['backend', 'hello'],
-    queryFn: fetchBackendHello,
+    queryKey: ['backend', 'status'],
+    queryFn: fetchBackendStatus,
   })
 
   let title = 'Ready'

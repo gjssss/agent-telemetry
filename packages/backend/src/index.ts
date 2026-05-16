@@ -1,29 +1,23 @@
-import { existsSync } from 'node:fs'
-import { readFile } from 'node:fs/promises'
-import { resolve } from 'node:path'
-import process from 'node:process'
-import { buildGreeting } from '@auto-code/core'
-import { serve } from '@hono/node-server'
-import { serveStatic } from '@hono/node-server/serve-static'
+import { buildBackendStatusMessage } from '@agent-telemetry/core'
 import { Hono } from 'hono'
+import { serveStatic } from 'hono/bun'
 
 const app = new Hono()
 
 app.get('/api/hello', (c) => {
   return c.json({
-    message: buildGreeting('backend'),
+    message: buildBackendStatusMessage(),
     time: new Date().toISOString(),
   })
 })
 
-const distDir = process.env.FRONTEND_DIST
-if (distDir && existsSync(distDir)) {
+const distDir = Bun.env.FRONTEND_DIST
+if (distDir && await Bun.file(`${distDir}/index.html`).exists()) {
   app.use('/*', serveStatic({ root: distDir }))
   app.get('*', async (c) => {
     if (c.req.path.startsWith('/api/'))
       return c.notFound()
-    const indexPath = resolve(distDir, 'index.html')
-    const html = await readFile(indexPath, 'utf-8')
+    const html = await Bun.file(`${distDir}/index.html`).text()
     return c.html(html)
   })
 }
@@ -31,7 +25,7 @@ else if (distDir) {
   console.warn(`[backend] FRONTEND_DIST not found: ${distDir}`)
 }
 
-const port = Number(process.env.PORT ?? 3000)
+const port = Number(Bun.env.PORT ?? 3000)
 
 console.log(`[backend] listening on http://localhost:${port}`)
-serve({ fetch: app.fetch, port })
+Bun.serve({ fetch: app.fetch, port })

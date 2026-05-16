@@ -1,63 +1,54 @@
-import { spawn } from 'node:child_process'
-import { existsSync } from 'node:fs'
-import { dirname, resolve } from 'node:path'
-import process from 'node:process'
-import { fileURLToPath } from 'node:url'
-import { buildGreeting } from '@auto-code/core'
 import { Command } from 'commander'
 
 const VERSION = __APP_VERSION__
 
 interface RunOptions {
   cwd?: string
-  env?: NodeJS.ProcessEnv
+  env?: Record<string, string | undefined>
 }
 
-interface WebOptions {
+interface ServerOptions {
   port?: string
 }
 
-function runCommand(command: string, args: string[], options: RunOptions = {}) {
-  return new Promise<void>((resolvePromise, rejectPromise) => {
-    const child = spawn(command, args, {
-      cwd: options.cwd,
-      env: options.env ?? process.env,
-      stdio: 'inherit',
-    })
-
-    child.on('error', rejectPromise)
-    child.on('close', (code) => {
-      if (code === 0) {
-        resolvePromise()
-      }
-      else {
-        rejectPromise(new Error(`${command} ${args.join(' ')} exited with ${code}`))
-      }
-    })
+async function runCommand(command: string, args: string[], options: RunOptions = {}) {
+  const child = Bun.spawn([command, ...args], {
+    cwd: options.cwd,
+    env: options.env,
+    stdin: 'inherit',
+    stdout: 'inherit',
+    stderr: 'inherit',
   })
+
+  const exitCode = await child.exited
+  if (exitCode !== 0)
+    throw new Error(`${command} ${args.join(' ')} exited with ${exitCode}`)
 }
 
 function resolveCliDist() {
-  const cliDir = dirname(fileURLToPath(import.meta.url))
-  return cliDir
+  return import.meta.dirname
 }
 
-async function runWeb(options: WebOptions) {
-  const cliDist = resolveCliDist()
-  const webRoot = resolve(cliDist, 'web')
-  const frontendDist = resolve(webRoot, 'frontend')
-  const backendEntry = resolve(webRoot, 'backend', 'index.js')
+async function pathExists(path: string) {
+  return Bun.file(path).exists()
+}
 
-  if (!existsSync(frontendDist)) {
+async function runServer(options: ServerOptions) {
+  const cliDist = resolveCliDist()
+  const webRoot = `${cliDist}/web`
+  const frontendDist = `${webRoot}/frontend`
+  const backendEntry = `${webRoot}/backend/index.js`
+
+  if (!(await pathExists(`${frontendDist}/index.html`))) {
     throw new Error('Frontend assets not found. Please rebuild the CLI package.')
   }
 
-  if (!existsSync(backendEntry)) {
+  if (!(await pathExists(backendEntry))) {
     throw new Error('Backend bundle not found. Please rebuild the CLI package.')
   }
 
-  const env: NodeJS.ProcessEnv = {
-    ...process.env,
+  const env: Record<string, string | undefined> = {
+    ...Bun.env,
     FRONTEND_DIST: frontendDist,
   }
 
@@ -65,33 +56,25 @@ async function runWeb(options: WebOptions) {
     env.PORT = options.port
   }
 
-  await runCommand('node', [backendEntry], { env })
+  await runCommand('bun', [backendEntry], { env })
 }
 
 const program = new Command()
 
 program
-  .name('auto-code')
-  .description('A modern TypeScript CLI template built with Vite.')
+  .name('agent-telemetry')
+  .description('Agent Telemetry CLI.')
   .version(VERSION)
 
 program
-  .command('hello')
-  .description('Print a greeting')
-  .argument('[name]', 'Name to greet', 'world')
-  .action((name: string) => {
-    console.log(buildGreeting(name))
-  })
-
-program
-  .command('web')
+  .command('server')
   .description('Serve the bundled frontend with the backend API')
   .option('-p, --port <port>', 'Set backend port', '3000')
-  .action(async (options: WebOptions) => {
-    await runWeb(options)
+  .action(async (options: ServerOptions) => {
+    await runServer(options)
   })
 
-program.parseAsync(process.argv).catch((error) => {
+await program.parseAsync(Bun.argv).catch((error) => {
   console.error(error instanceof Error ? error.message : error)
-  process.exitCode = 1
+  throw error
 })
