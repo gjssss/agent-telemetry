@@ -18,3 +18,11 @@ Published package: `agent-metry`
 - Start bundled server: `bun run --filter @agent-metry/cli start -- server --port 3000`
 
 `bun run build` builds frontend and backend and bundles them into the CLI package output.
+
+## Release
+
+- Publish current package: `npm publish`
+- Bump, publish, tag, and push: `bun run release`
+- Non-interactive patch release: `bun run release:patch`
+
+The release workflow uses `bumpp` to keep the published package version and CLI `--version` in sync.
