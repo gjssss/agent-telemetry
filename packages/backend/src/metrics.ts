@@ -1,11 +1,11 @@
 import type {
-  ModelPrice,
+  ModelCost,
   SessionMetricUpload,
   UploadProvider,
   UploadSessionsRequest,
   UploadSessionsResponse,
 } from '@agent-metry/core'
-import { modelsManager } from '@agent-metry/core'
+import { calculateModelCost, isUnknownModel, modelsManager } from '@agent-metry/core'
 import { sql } from 'drizzle-orm'
 import { db, resolveDataDir, sqlite } from './db'
 import { user } from './db/schema'
@@ -32,15 +32,6 @@ interface NormalizedSessionMetric {
   conversationTurnCount: number
   userMessageCount: number
   toolCallCount: number
-}
-
-interface CostResult {
-  inputCost: number
-  outputCost: number
-  cachedInputCost: number
-  reasoningOutputCost: number
-  totalCost: number
-  missingModelId?: string
 }
 
 function toNonEmptyString(value: unknown) {
@@ -136,50 +127,6 @@ function parseUploadRequest(body: unknown) {
   }
 }
 
-const MICRO_USD_PER_CENT = 10_000
-
-function costForTokens(tokens: number, usdPer1mTokens: number) {
-  return Math.round((tokens * usdPer1mTokens) / MICRO_USD_PER_CENT) * MICRO_USD_PER_CENT
-}
-
-function isUnknownModel(model: string) {
-  return model.toLowerCase() === 'unknown'
-}
-
-function zeroCost(missingModelId?: string): CostResult {
-  return {
-    inputCost: 0,
-    outputCost: 0,
-    cachedInputCost: 0,
-    reasoningOutputCost: 0,
-    totalCost: 0,
-    missingModelId,
-  }
-}
-
-function calculateCost(metric: NormalizedSessionMetric, prices: Map<string, ModelPrice>): CostResult {
-  if (isUnknownModel(metric.model))
-    return zeroCost()
-
-  const price = prices.get(metric.model)
-  if (!price)
-    return zeroCost(metric.model)
-
-  const uncachedInputTokens = Math.max(metric.inputTokens - metric.cachedInputTokens, 0)
-  const inputCost = costForTokens(uncachedInputTokens, price.input_usd_per_1m_tokens)
-  const outputCost = costForTokens(metric.outputTokens, price.output_usd_per_1m_tokens)
-  const cachedInputCost = costForTokens(metric.cachedInputTokens, price.cached_input_usd_per_1m_tokens)
-  const reasoningOutputCost = costForTokens(metric.reasoningOutputTokens, price.output_usd_per_1m_tokens)
-
-  return {
-    inputCost,
-    outputCost,
-    cachedInputCost,
-    reasoningOutputCost,
-    totalCost: inputCost + outputCost + cachedInputCost + reasoningOutputCost,
-  }
-}
-
 async function readModelPrices() {
   const state = await modelsManager.ensureDefaultModels({ stateDir: resolveDataDir() })
   return new Map(state.models.map(model => [model.model, model]))
@@ -218,16 +165,22 @@ export async function uploadSessionMetrics(
   const completedAt = new Date().toISOString()
   const batchId = crypto.randomUUID()
   const missingPriceModelIds = new Set<string>()
-  const normalized: Array<{ metric: NormalizedSessionMetric, cost: CostResult }> = []
+  const normalized: Array<{ metric: NormalizedSessionMetric, cost: ModelCost }> = []
 
   for (const raw of parsed.sessions) {
     const metric = normalizeSessionMetric(raw, parsed.provider)
     if (!metric)
       return { error: 'invalid session metrics payload' }
 
-    const cost = calculateCost(metric, prices)
-    if (cost.missingModelId)
-      missingPriceModelIds.add(cost.missingModelId)
+    const cost = calculateModelCost({
+      model: metric.model,
+      input_tokens: metric.inputTokens,
+      output_tokens: metric.outputTokens,
+      cached_input_tokens: metric.cachedInputTokens,
+      reasoning_output_tokens: metric.reasoningOutputTokens,
+    }, prices.get(metric.model))
+    if (cost.missing_model_id)
+      missingPriceModelIds.add(cost.missing_model_id)
     normalized.push({ metric, cost })
   }
 
@@ -305,11 +258,11 @@ export async function uploadSessionMetrics(
         metric.conversationTurnCount,
         metric.userMessageCount,
         metric.toolCallCount,
-        cost.inputCost,
-        cost.outputCost,
-        cost.cachedInputCost,
-        cost.reasoningOutputCost,
-        cost.totalCost,
+        cost.input_cost,
+        cost.output_cost,
+        cost.cached_input_cost,
+        cost.reasoning_output_cost,
+        cost.total_cost,
       )
     }
 

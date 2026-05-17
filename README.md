@@ -122,7 +122,6 @@ packages/frontend  Vite + React + TanStack Router Web 控制台
 packages/core      共享类型、本地状态管理、Codex session 解析和上传规划
 docs/PRD.md        产品需求文档
 docs/TECH.md       技术设计文档
-docs/V1.md         当前版本实现范围
 ```
 
 开发常用命令：
@@ -136,7 +135,7 @@ bun run --filter @agent-metry/frontend dev
 bun run --filter @agent-metry/cli start -- server --port 3000
 ```
 
-开始改动前先读 `docs/V1.md`。涉及产品边界再读 `docs/PRD.md`；涉及 Codex 数据解析、数据库、费用计算、鉴权或隐私约束再读 `docs/TECH.md`。
+涉及产品边界再读 `docs/PRD.md`；涉及 Codex 数据解析、数据库、费用计算、鉴权或隐私约束再读 `docs/TECH.md`。
 
 开发约定：
 

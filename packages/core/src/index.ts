@@ -39,9 +39,11 @@ export interface AuthState {
   refresh_token: string
 }
 
+export type ModelProvider = 'openai' | 'anthropic'
+
 export interface ModelPrice {
   model: string
-  provider: 'openai' | 'anthropic'
+  provider: ModelProvider
   input_usd_per_1m_tokens: number
   cached_input_usd_per_1m_tokens: number
   output_usd_per_1m_tokens: number
@@ -49,6 +51,23 @@ export interface ModelPrice {
 
 export interface ModelsState {
   models: ModelPrice[]
+}
+
+export interface ModelTokenUsage {
+  model: string
+  input_tokens: number
+  output_tokens: number
+  cached_input_tokens: number
+  reasoning_output_tokens: number
+}
+
+export interface ModelCost {
+  input_cost: number
+  output_cost: number
+  cached_input_cost: number
+  reasoning_output_cost: number
+  total_cost: number
+  missing_model_id?: string
 }
 
 export interface UploadHistoryItem {
@@ -174,6 +193,91 @@ export const DEFAULT_MODEL_PRICES: ModelPrice[] = [
     output_usd_per_1m_tokens: 5,
   },
 ]
+
+const MICRO_USD_PER_CENT = 10_000
+
+function isModelProvider(value: string): value is ModelProvider {
+  return value === 'openai' || value === 'anthropic'
+}
+
+function costForTokens(tokens: number, usdPer1mTokens: number) {
+  return Math.round((tokens * usdPer1mTokens) / MICRO_USD_PER_CENT) * MICRO_USD_PER_CENT
+}
+
+function zeroCost(missingModelId?: string): ModelCost {
+  return {
+    input_cost: 0,
+    output_cost: 0,
+    cached_input_cost: 0,
+    reasoning_output_cost: 0,
+    total_cost: 0,
+    missing_model_id: missingModelId,
+  }
+}
+
+function assertModelId(model: string) {
+  const normalized = model.trim()
+  if (!normalized)
+    throw new Error('Model id is required')
+  return normalized
+}
+
+function assertModelProvider(provider: string) {
+  if (!isModelProvider(provider))
+    throw new Error('Provider must be openai or anthropic')
+  return provider
+}
+
+function assertNonNegativeFinitePrice(value: number, key: string) {
+  if (typeof value !== 'number' || !Number.isFinite(value) || value < 0)
+    throw new Error(`${key} must be a non-negative finite number`)
+  return value
+}
+
+export function isUnknownModel(model: string) {
+  return model.toLowerCase() === 'unknown'
+}
+
+export function validateModelPrice(price: ModelPrice): ModelPrice {
+  return {
+    model: assertModelId(price.model),
+    provider: assertModelProvider(price.provider),
+    input_usd_per_1m_tokens: assertNonNegativeFinitePrice(
+      price.input_usd_per_1m_tokens,
+      'input_usd_per_1m_tokens',
+    ),
+    cached_input_usd_per_1m_tokens: assertNonNegativeFinitePrice(
+      price.cached_input_usd_per_1m_tokens,
+      'cached_input_usd_per_1m_tokens',
+    ),
+    output_usd_per_1m_tokens: assertNonNegativeFinitePrice(
+      price.output_usd_per_1m_tokens,
+      'output_usd_per_1m_tokens',
+    ),
+  }
+}
+
+export function calculateModelCost(usage: ModelTokenUsage, price?: ModelPrice): ModelCost {
+  if (isUnknownModel(usage.model))
+    return zeroCost()
+
+  if (!price)
+    return zeroCost(usage.model)
+
+  const uncachedInputTokens = Math.max(usage.input_tokens - usage.cached_input_tokens, 0)
+  const inputCost = costForTokens(uncachedInputTokens, price.input_usd_per_1m_tokens)
+  const outputCost = costForTokens(usage.output_tokens, price.output_usd_per_1m_tokens)
+  const cachedInputCost = costForTokens(usage.cached_input_tokens, price.cached_input_usd_per_1m_tokens)
+  const reasoningOutputCost = costForTokens(usage.reasoning_output_tokens, price.output_usd_per_1m_tokens)
+
+  return {
+    input_cost: inputCost,
+    output_cost: outputCost,
+    cached_input_cost: cachedInputCost,
+    reasoning_output_cost: reasoningOutputCost,
+    total_cost: inputCost + outputCost + cachedInputCost + reasoningOutputCost,
+  }
+}
 
 function resolveHomeDir(options: LocalStateOptions = {}) {
   const homeDir = options.homeDir ?? globalThis.Bun?.env.HOME
@@ -301,6 +405,46 @@ export const modelsManager = {
 
   async read(options?: LocalStateOptions) {
     return await readJsonFile<ModelsState>(this.path(options))
+  },
+
+  async write(state: ModelsState, options?: LocalStateOptions) {
+    await ensureStateDir(options)
+    await writeJsonFile(this.path(options), {
+      models: state.models.map(validateModelPrice),
+    })
+  },
+
+  async list(options?: LocalStateOptions) {
+    return await this.ensureDefaultModels(options)
+  },
+
+  async set(price: ModelPrice, options?: LocalStateOptions) {
+    const normalized = validateModelPrice(price)
+    const state = await this.ensureDefaultModels(options)
+    const existingIndex = state.models.findIndex(model => model.model === normalized.model)
+    const action = existingIndex === -1 ? 'created' : 'updated'
+    const nextModels = [...state.models]
+
+    if (existingIndex === -1)
+      nextModels.push(normalized)
+    else
+      nextModels[existingIndex] = normalized
+
+    const next = { models: nextModels }
+    await this.write(next, options)
+    return { action, model: normalized, state: next }
+  },
+
+  async remove(model: string, options?: LocalStateOptions) {
+    const modelId = assertModelId(model)
+    const state = await this.ensureDefaultModels(options)
+    const nextModels = state.models.filter(price => price.model !== modelId)
+    if (nextModels.length === state.models.length)
+      throw new Error(`Model not found: ${modelId}`)
+
+    const next = { models: nextModels }
+    await this.write(next, options)
+    return { model: modelId, state: next }
   },
 }
 

@@ -66,7 +66,7 @@ Codex session 解析只读取必要结构化字段，并构造白名单聚合数
 
 上传请求不信任客户端传入用户身份。服务端从 Bearer token 解析 `user_id`，并以 `user_id + provider + session_id` 幂等 upsert。
 
-费用由后端根据 `~/.agent-metry/models.json` 计算。模型价格缺失时不阻断上传和统计，记录缺失模型 id，并让前端提示管理员补充价格。
+费用由后端根据 `~/.agent-metry/models.json` 计算。模型价格缺失时不阻断上传和统计，记录缺失模型 id，并让前端提示管理员通过 `models set` 补充价格；补充价格后命令会重算该模型已上传 session 的历史费用。
 
 ## 增量上传历史
 
@@ -104,7 +104,11 @@ history 仅在服务端确认上传成功后更新。
 ## 配置与价格文件
 
 - `config.json`: 首次 CLI 运行时创建，默认 `base_url` 为 `http://localhost:3000`。代码中使用 `configManager` 统一管理配置文件和字段；读取不到所需字段时直接报错。
-- `models.json`: 首次运行 `server` 时创建并写入默认模型价格表。价格单位为 USD / 1M tokens，运行时换算为整数最小费用单位。
+- `models.json`: 首次运行 `server` 或 `models` 命令时创建并写入默认模型价格表。价格单位为 USD / 1M tokens，运行时换算为整数最小费用单位。
+- `models set <model> --provider <openai|anthropic> --input <usd> --cached-input <usd> --output <usd>`: 新增或覆盖模型价格，并重算该模型历史费用。
+- `models missing`: 扫描 `session_metrics` 中已有但价格表缺失的模型 id。
+- `models reprice [model]`: 手动按当前价格表重算历史费用，适合手动编辑 `models.json` 后使用。
+- `models remove <model>`: 删除模型价格，并将该模型历史费用清零。
 
 默认模型价格表至少包含以下 USD / 1M tokens 价格：
 

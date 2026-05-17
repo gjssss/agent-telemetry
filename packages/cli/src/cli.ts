@@ -1,8 +1,12 @@
 import {
   authManager,
+  calculateModelCost,
   configManager,
+  isUnknownModel,
   modelsManager,
+  resolveAgentTelemetryDir,
   type AuthState,
+  type ModelProvider,
   type SessionMetricUpload,
   type UploadSessionsResponse,
 } from '@agent-metry/core'
@@ -11,6 +15,7 @@ import {
   planDefaultCodexSessionUploads,
   type PendingCodexSessionUpload,
 } from '@agent-metry/core/codex'
+import { Database } from 'bun:sqlite'
 import { Command } from 'commander'
 
 const VERSION = __APP_VERSION__
@@ -27,6 +32,30 @@ interface ServerOptions {
 interface HttpErrorPayload {
   error?: string
   message?: string
+}
+
+interface ModelSetOptions {
+  provider: string
+  input: string
+  cachedInput: string
+  output: string
+}
+
+interface SessionMetricCostRow {
+  id: string
+  model: string
+  input_tokens: number
+  output_tokens: number
+  cached_input_tokens: number
+  reasoning_output_tokens: number
+}
+
+interface ModelRow {
+  model: string
+}
+
+interface CountRow {
+  count: number
 }
 
 async function runCommand(command: string, args: string[], options: RunOptions = {}) {
@@ -51,12 +80,193 @@ async function pathExists(path: string) {
   return Bun.file(path).exists()
 }
 
+function resolveDatabasePath() {
+  return `${resolveAgentTelemetryDir()}/data.db`
+}
+
 function trimTrailingSlash(value: string) {
   return value.replace(/\/+$/, '')
 }
 
 async function readBaseUrl() {
   return trimTrailingSlash(await configManager.getRequired('base_url'))
+}
+
+function parseModelProvider(value: string): ModelProvider {
+  const provider = value.trim()
+  if (provider === 'openai' || provider === 'anthropic')
+    return provider
+  throw new Error('Provider must be openai or anthropic')
+}
+
+function parsePriceOption(value: string, key: string) {
+  const rawValue = value.trim()
+  if (!rawValue)
+    throw new Error(`${key} must be a non-negative finite number`)
+  const price = Number(rawValue)
+  if (!Number.isFinite(price) || price < 0)
+    throw new Error(`${key} must be a non-negative finite number`)
+  return price
+}
+
+function hasSessionMetricsTable(sqlite: Database) {
+  return Boolean(sqlite.query<{ name: string }, [string]>(`
+    SELECT name
+    FROM sqlite_master
+    WHERE type = 'table' AND name = ?
+  `).get('session_metrics'))
+}
+
+async function openExistingMetricsDatabase() {
+  const databasePath = resolveDatabasePath()
+  if (!(await pathExists(databasePath)))
+    return undefined
+
+  const sqlite = new Database(databasePath)
+  if (!hasSessionMetricsTable(sqlite)) {
+    sqlite.close()
+    return undefined
+  }
+
+  return sqlite
+}
+
+async function listMissingModels() {
+  const state = await modelsManager.ensureDefaultModels()
+  const knownModelIds = new Set(state.models.map(model => model.model))
+  const sqlite = await openExistingMetricsDatabase()
+  if (!sqlite)
+    return []
+
+  try {
+    const rows = sqlite.query<ModelRow, []>(`
+      SELECT DISTINCT model
+      FROM session_metrics
+      ORDER BY model ASC
+    `).all()
+
+    return rows
+      .map(row => row.model)
+      .filter(model => !isUnknownModel(model) && !knownModelIds.has(model))
+  }
+  finally {
+    sqlite.close()
+  }
+}
+
+async function repriceSessions(model?: string) {
+  const modelId = model?.trim()
+  if (model !== undefined && !modelId)
+    throw new Error('Model id is required')
+
+  const state = await modelsManager.ensureDefaultModels()
+  const prices = new Map(state.models.map(price => [price.model, price]))
+  const sqlite = await openExistingMetricsDatabase()
+  if (!sqlite)
+    return 0
+
+  try {
+    const rows = modelId
+      ? sqlite.query<SessionMetricCostRow, [string]>(`
+          SELECT
+            id,
+            model,
+            input_tokens,
+            output_tokens,
+            cached_input_tokens,
+            reasoning_output_tokens
+          FROM session_metrics
+          WHERE model = ?
+        `).all(modelId)
+      : sqlite.query<SessionMetricCostRow, []>(`
+          SELECT
+            id,
+            model,
+            input_tokens,
+            output_tokens,
+            cached_input_tokens,
+            reasoning_output_tokens
+          FROM session_metrics
+        `).all()
+
+    sqlite.transaction(() => {
+      const updateQuery = sqlite.query(`
+        UPDATE session_metrics
+        SET
+          input_cost = ?,
+          output_cost = ?,
+          cached_input_cost = ?,
+          reasoning_output_cost = ?,
+          total_cost = ?
+        WHERE id = ?
+      `)
+
+      for (const row of rows) {
+        const cost = calculateModelCost(row, prices.get(row.model))
+        updateQuery.run(
+          cost.input_cost,
+          cost.output_cost,
+          cost.cached_input_cost,
+          cost.reasoning_output_cost,
+          cost.total_cost,
+          row.id,
+        )
+      }
+    })()
+
+    return rows.length
+  }
+  finally {
+    sqlite.close()
+  }
+}
+
+async function clearModelCosts(model: string) {
+  const sqlite = await openExistingMetricsDatabase()
+  if (!sqlite)
+    return 0
+
+  try {
+    const count = sqlite.query<CountRow, [string]>(`
+      SELECT COUNT(*) AS count
+      FROM session_metrics
+      WHERE model = ?
+    `).get(model)?.count ?? 0
+
+    sqlite.query(`
+      UPDATE session_metrics
+      SET
+        input_cost = 0,
+        output_cost = 0,
+        cached_input_cost = 0,
+        reasoning_output_cost = 0,
+        total_cost = 0
+      WHERE model = ?
+    `).run(model)
+
+    return count
+  }
+  finally {
+    sqlite.close()
+  }
+}
+
+async function setModel(model: string, options: ModelSetOptions) {
+  const result = await modelsManager.set({
+    model,
+    provider: parseModelProvider(options.provider),
+    input_usd_per_1m_tokens: parsePriceOption(options.input, 'input'),
+    cached_input_usd_per_1m_tokens: parsePriceOption(options.cachedInput, 'cached-input'),
+    output_usd_per_1m_tokens: parsePriceOption(options.output, 'output'),
+  })
+  const repricedSessions = await repriceSessions(result.model.model)
+  console.log(`action=${result.action} repriced_sessions=${repricedSessions}`)
+}
+
+async function removeModel(model: string) {
+  const result = await modelsManager.remove(model)
+  const clearedSessions = await clearModelCosts(result.model)
+  console.log(`removed=true cleared_sessions=${clearedSessions}`)
 }
 
 async function requestJson<T>(
@@ -288,6 +498,53 @@ userCommand
   .description('Create a user with name defaulting to email')
   .action(async (email: string, password: string) => {
     await createUser(email, password)
+  })
+
+const modelsCommand = program
+  .command('models')
+  .description('Manage local model prices')
+
+modelsCommand
+  .command('list')
+  .description('List local model prices')
+  .action(async () => {
+    console.log(JSON.stringify(await modelsManager.list(), null, 2))
+  })
+
+modelsCommand
+  .command('missing')
+  .description('List models present in uploaded sessions but missing prices')
+  .action(async () => {
+    console.log(JSON.stringify(await listMissingModels(), null, 2))
+  })
+
+modelsCommand
+  .command('set')
+  .argument('<model>')
+  .requiredOption('--provider <provider>', 'Model provider: openai or anthropic')
+  .requiredOption('--input <usd>', 'Input price in USD per 1M tokens')
+  .requiredOption('--cached-input <usd>', 'Cached input price in USD per 1M tokens')
+  .requiredOption('--output <usd>', 'Output price in USD per 1M tokens')
+  .description('Create or update a local model price and reprice its sessions')
+  .action(async (model: string, options: ModelSetOptions) => {
+    await setModel(model, options)
+  })
+
+modelsCommand
+  .command('remove')
+  .argument('<model>')
+  .description('Remove a local model price and clear its stored session costs')
+  .action(async (model: string) => {
+    await removeModel(model)
+  })
+
+modelsCommand
+  .command('reprice')
+  .argument('[model]')
+  .description('Recalculate stored session costs from local model prices')
+  .action(async (model?: string) => {
+    const repricedSessions = await repriceSessions(model)
+    console.log(`model=${model?.trim() || 'all'} repriced_sessions=${repricedSessions}`)
   })
 
 program

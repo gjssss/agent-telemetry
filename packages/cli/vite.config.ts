@@ -18,6 +18,7 @@ export default defineConfig({
       external: [
         '@agent-metry/core',
         '@agent-metry/core/codex',
+        'bun:sqlite',
         'commander',
       ],
       output: {

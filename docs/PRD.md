@@ -10,6 +10,7 @@ Agent Metry 是一个自部署的 agent 消耗记录 App。用户通过 CLI 主�
 
 - `cli.js server`: 启动前后端一体服务。
 - `cli.js config set/get/list/remove`: 管理 CLI 配置。
+- `cli.js models list/missing/set/remove/reprice`: 管理模型价格并修正历史费用。
 - `cli.js user create <email> <password>`: 创建用户，昵称默认等于邮箱。
 - `cli.js login <email> <password>`: 登录并保存本地 token。
 - `cli.js upload`: 使用本地 token 上传 Codex session 聚合数据。
@@ -46,13 +47,13 @@ Agent Metry 是一个自部署的 agent 消耗记录 App。用户通过 CLI 主�
 
 ## 费用与价格
 
-费用由后端计算。模型价格来自 `~/.agent-metry/models.json`，首次启动时写入默认价格表。
+费用由后端计算。模型价格来自 `~/.agent-metry/models.json`，首次启动或执行 `models` 命令时写入默认价格表。
 
-如果某个模型没有价格配置，上传和统计不能失败；后端应记录价格缺失状态，前端提示管理员补充该模型 id 的价格。
+如果某个模型没有价格配置，上传和统计不能失败；后端应记录价格缺失状态，前端提示管理员用 `models set` 补充该模型 id 的价格，并重算已上传 session 的历史费用。
 
 ## 成功标准
 
-- CLI 能完成 server、config、user create、login、upload 主链路。
+- CLI 能完成 server、config、models、user create、login、upload 主链路。
 - 重复 upload 不产生重复 session，且未变化的本地 session 会被跳过。
 - Web 能完成登录/注册、查看信息页、查看排行榜、编辑昵称。
 - 隐私敏感内容不会被上传。
