@@ -8,6 +8,7 @@ import {
   type TimeRange,
   formatCost,
   formatInteger,
+  formatTokenCount,
   getLeaderboard,
 } from '@/lib/telemetry-api'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
@@ -125,13 +126,13 @@ function LeaderboardRoute() {
                     <TableCell className='text-end font-medium'>
                       {metric === 'cost'
                         ? formatCost(row.total_cost)
-                        : formatInteger(row.total_tokens)}
+                        : formatTokenCount(row.total_tokens)}
                     </TableCell>
                     <TableCell className='text-end'>
                       {formatCost(row.total_cost)}
                     </TableCell>
                     <TableCell className='text-end'>
-                      {formatInteger(row.total_tokens)}
+                      {formatTokenCount(row.total_tokens)}
                     </TableCell>
                     <TableCell className='text-end'>
                       {formatInteger(row.session_count)}

@@ -15,6 +15,7 @@ import {
   type TimeRange,
   formatCost,
   formatInteger,
+  formatTokenCount,
   getSummary,
 } from '@/lib/telemetry-api'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
@@ -124,8 +125,8 @@ export function Dashboard() {
           />
           <MetricCard
             title='总 Token'
-            value={formatInteger(totals?.total_tokens)}
-            detail={`输入 ${formatInteger(totals?.input_tokens)} / 输出 ${formatInteger(totals?.output_tokens)}`}
+            value={formatTokenCount(totals?.total_tokens)}
+            detail={`输入 ${formatTokenCount(totals?.input_tokens)} / 输出 ${formatTokenCount(totals?.output_tokens)}`}
             icon={Brain}
           />
           <MetricCard
@@ -228,7 +229,7 @@ export function Dashboard() {
                           {formatCost(model.total_cost)}
                         </div>
                         <div className='text-xs text-muted-foreground'>
-                          {formatInteger(model.total_tokens)} tokens
+                          {formatTokenCount(model.total_tokens)} tokens
                         </div>
                       </div>
                     </div>

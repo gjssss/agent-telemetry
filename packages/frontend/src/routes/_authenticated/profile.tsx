@@ -9,6 +9,7 @@ import {
   type TimeRange,
   formatCost,
   formatInteger,
+  formatTokenCount,
   getProfile,
   updateCurrentUserName,
 } from '@/lib/telemetry-api'
@@ -188,7 +189,7 @@ function ProfileRoute() {
               <div className='rounded-md border bg-muted/20 p-3'>
                 <div className='text-sm text-muted-foreground'>总 Token</div>
                 <div className='mt-1 text-2xl font-bold'>
-                  {formatInteger(summary?.total_tokens)}
+                  {formatTokenCount(summary?.total_tokens)}
                 </div>
               </div>
               <div className='rounded-md border bg-muted/20 p-3'>

@@ -211,11 +211,19 @@ export function formatInteger(value: number | null | undefined) {
   return new Intl.NumberFormat('en-US').format(Number(value ?? 0))
 }
 
+export function formatTokenCount(value: number | null | undefined) {
+  return new Intl.NumberFormat('en-US', {
+    notation: 'compact',
+    compactDisplay: 'short',
+    maximumFractionDigits: 1,
+  }).format(Number(value ?? 0))
+}
+
 export function formatCost(microUsd: number | null | undefined) {
   return new Intl.NumberFormat('en-US', {
     style: 'currency',
     currency: 'USD',
     minimumFractionDigits: 2,
-    maximumFractionDigits: 6,
+    maximumFractionDigits: 2,
   }).format(Number(microUsd ?? 0) / 1_000_000)
 }

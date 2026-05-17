@@ -136,8 +136,10 @@ function parseUploadRequest(body: unknown) {
   }
 }
 
+const MICRO_USD_PER_CENT = 10_000
+
 function costForTokens(tokens: number, usdPer1mTokens: number) {
-  return Math.round(tokens * usdPer1mTokens)
+  return Math.round((tokens * usdPer1mTokens) / MICRO_USD_PER_CENT) * MICRO_USD_PER_CENT
 }
 
 function isUnknownModel(model: string) {
@@ -163,7 +165,8 @@ function calculateCost(metric: NormalizedSessionMetric, prices: Map<string, Mode
   if (!price)
     return zeroCost(metric.model)
 
-  const inputCost = costForTokens(metric.inputTokens, price.input_usd_per_1m_tokens)
+  const uncachedInputTokens = Math.max(metric.inputTokens - metric.cachedInputTokens, 0)
+  const inputCost = costForTokens(uncachedInputTokens, price.input_usd_per_1m_tokens)
   const outputCost = costForTokens(metric.outputTokens, price.output_usd_per_1m_tokens)
   const cachedInputCost = costForTokens(metric.cachedInputTokens, price.cached_input_usd_per_1m_tokens)
   const reasoningOutputCost = costForTokens(metric.reasoningOutputTokens, price.output_usd_per_1m_tokens)
