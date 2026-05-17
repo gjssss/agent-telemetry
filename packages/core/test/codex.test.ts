@@ -177,6 +177,59 @@ test('parseCodexSessionFile falls back to filename UUID when session_meta id is 
   expect(parsed.metrics.session_id).toBe('019cbbbb-1111-7222-8333-abcdefabcdef')
 })
 
+test('parseCodexSessionFile reads nested info token totals from current Codex sessions', async () => {
+  const dir = createTempDir()
+  const path = `${dir}/019cbbbc-1111-7222-8333-abcdefabcdef.jsonl`
+
+  await writeJsonl(path, [
+    {
+      type: 'response_item',
+      timestamp: '2026-05-17T00:00:00.000Z',
+      payload: {
+        type: 'message',
+        info: {
+          model_context_window: 200000,
+          total_token_usage: {
+            input_tokens: 100,
+            output_tokens: 20,
+            cached_input_tokens: 30,
+            reasoning_output_tokens: 4,
+            total_tokens: 120,
+          },
+        },
+      },
+    },
+    {
+      type: 'response_item',
+      timestamp: '2026-05-17T00:00:01.000Z',
+      payload: {
+        type: 'message',
+        info: {
+          model_context_window: 200000,
+          total_token_usage: {
+            input_tokens: 150,
+            output_tokens: 50,
+            cached_input_tokens: 40,
+            reasoning_output_tokens: 10,
+            total_tokens: 200,
+          },
+        },
+      },
+    },
+  ])
+
+  const parsed = await parseCodexSessionFile(path)
+
+  expect(parsed.metrics.model).toBe('unknown')
+  expect(parsed.metrics.model_context_window).toBe(200000)
+  expect(parsed.metrics.input_tokens).toBe(150)
+  expect(parsed.metrics.output_tokens).toBe(50)
+  expect(parsed.metrics.cached_input_tokens).toBe(40)
+  expect(parsed.metrics.reasoning_output_tokens).toBe(10)
+  expect(parsed.metrics.total_tokens).toBe(200)
+  expect(parsed.metrics.api_call_count).toBe(2)
+})
+
 test('scanCodexSessionFiles uses default Codex session and archived session locations', async () => {
   const homeDir = createTempDir()
   const activePath = `${homeDir}/.codex/sessions/2026/05/17/019cccc1-1111-7222-8333-abcdefabcdef.jsonl`

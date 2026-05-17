@@ -26,7 +26,7 @@ export interface CodexSessionMetrics {
   session_id: string
   started_at: string
   ended_at: string
-  model: string | null
+  model: string
   model_provider: string | null
   reasoning_effort: string | null
   cli_version: string | null
@@ -162,8 +162,11 @@ function usageSnapshot(value: unknown): TokenUsageSnapshot | undefined {
 
 function findTokenUsage(entry: Record<string, unknown>) {
   const payload = payloadOf(entry)
+  const info = asRecord(payload.info)
   return usageSnapshot(payload.total_token_usage)
+    ?? usageSnapshot(info?.total_token_usage)
     ?? usageSnapshot(payload.token_usage)
+    ?? usageSnapshot(info?.last_token_usage)
     ?? usageSnapshot(payload.usage)
 }
 
@@ -214,7 +217,12 @@ function sessionMeta(entry: Record<string, unknown>) {
 function metadataFrom(entry: Record<string, unknown>) {
   const payload = payloadOf(entry)
   const nested = asRecord(payload.metadata) ?? asRecord(payload.config)
-  return nested ? { ...payload, ...nested } : payload
+  const info = asRecord(payload.info)
+  return {
+    ...payload,
+    ...nested,
+    ...info,
+  }
 }
 
 function sortByPath(left: CodexSessionFile, right: CodexSessionFile) {
@@ -365,7 +373,7 @@ export async function parseCodexSessionFile(file: CodexSessionFile | string): Pr
     session_id: sessionId ?? fallbackSessionId ?? basename(sourceFile.source_path).replace(/\.jsonl$/i, ''),
     started_at: startedAt ?? new Date(sourceFile.file_mtime_ms).toISOString(),
     ended_at: endedAt ?? new Date(sourceFile.file_mtime_ms).toISOString(),
-    model,
+    model: model ?? 'unknown',
     model_provider: modelProvider,
     reasoning_effort: reasoningEffort,
     cli_version: cliVersion,

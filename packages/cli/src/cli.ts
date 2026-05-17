@@ -170,16 +170,13 @@ async function readAuthToken() {
 
 function toUploadMetric(item: PendingCodexSessionUpload): SessionMetricUpload {
   const { metrics } = item
-  if (!metrics.model) {
-    throw new Error(`Cannot upload ${item.file.source_path}: parsed session is missing model`)
-  }
 
   return {
     provider: 'codex',
     session_id: metrics.session_id,
     started_at: metrics.started_at,
     ended_at: metrics.ended_at,
-    model: metrics.model,
+    model: metrics.model || 'unknown',
     model_provider: metrics.model_provider,
     reasoning_effort: metrics.reasoning_effort,
     cli_version: metrics.cli_version,

@@ -76,24 +76,28 @@ function normalizeProvider(value: unknown, fallback?: UploadProvider): UploadPro
 }
 
 function normalizeSessionMetric(
-  raw: SessionMetricUpload,
+  raw: unknown,
   fallbackProvider?: UploadProvider,
 ): NormalizedSessionMetric | undefined {
-  const provider = normalizeProvider(raw.provider, fallbackProvider)
-  const sessionId = toNonEmptyString(raw.session_id)
-  const startedAt = toNonEmptyString(raw.started_at)
-  const endedAt = toNonEmptyString(raw.ended_at)
-  const model = toNonEmptyString(raw.model)
+  if (!raw || typeof raw !== 'object')
+    return undefined
+
+  const item = raw as SessionMetricUpload
+  const provider = normalizeProvider(item.provider, fallbackProvider)
+  const sessionId = toNonEmptyString(item.session_id)
+  const startedAt = toNonEmptyString(item.started_at)
+  const endedAt = toNonEmptyString(item.ended_at)
+  const model = toNonEmptyString(item.model)
 
   if (!provider || !sessionId || !startedAt || !endedAt || !model)
     return undefined
   if (!isIsoLike(startedAt) || !isIsoLike(endedAt))
     return undefined
 
-  const inputTokens = toCount(raw.input_tokens)
-  const outputTokens = toCount(raw.output_tokens)
-  const cachedInputTokens = toCount(raw.cached_input_tokens)
-  const reasoningOutputTokens = toCount(raw.reasoning_output_tokens)
+  const inputTokens = toCount(item.input_tokens)
+  const outputTokens = toCount(item.output_tokens)
+  const cachedInputTokens = toCount(item.cached_input_tokens)
+  const reasoningOutputTokens = toCount(item.reasoning_output_tokens)
 
   return {
     provider,
@@ -101,19 +105,19 @@ function normalizeSessionMetric(
     startedAt,
     endedAt,
     model,
-    modelProvider: toOptionalString(raw.model_provider),
-    reasoningEffort: toOptionalString(raw.reasoning_effort),
-    cliVersion: toOptionalString(raw.cli_version),
-    modelContextWindow: toOptionalInteger(raw.model_context_window),
+    modelProvider: toOptionalString(item.model_provider),
+    reasoningEffort: toOptionalString(item.reasoning_effort),
+    cliVersion: toOptionalString(item.cli_version),
+    modelContextWindow: toOptionalInteger(item.model_context_window),
     inputTokens,
     outputTokens,
     cachedInputTokens,
     reasoningOutputTokens,
-    totalTokens: toCount(raw.total_tokens) || inputTokens + outputTokens + cachedInputTokens + reasoningOutputTokens,
-    apiCallCount: toCount(raw.api_call_count),
-    conversationTurnCount: toCount(raw.conversation_turn_count),
-    userMessageCount: toCount(raw.user_message_count),
-    toolCallCount: toCount(raw.tool_call_count),
+    totalTokens: toCount(item.total_tokens) || inputTokens + outputTokens + cachedInputTokens + reasoningOutputTokens,
+    apiCallCount: toCount(item.api_call_count),
+    conversationTurnCount: toCount(item.conversation_turn_count),
+    userMessageCount: toCount(item.user_message_count),
+    toolCallCount: toCount(item.tool_call_count),
   }
 }
 
@@ -136,18 +140,28 @@ function costForTokens(tokens: number, usdPer1mTokens: number) {
   return Math.round(tokens * usdPer1mTokens)
 }
 
-function calculateCost(metric: NormalizedSessionMetric, prices: Map<string, ModelPrice>): CostResult {
-  const price = prices.get(metric.model)
-  if (!price) {
-    return {
-      inputCost: 0,
-      outputCost: 0,
-      cachedInputCost: 0,
-      reasoningOutputCost: 0,
-      totalCost: 0,
-      missingModelId: metric.model,
-    }
+function isUnknownModel(model: string) {
+  return model.toLowerCase() === 'unknown'
+}
+
+function zeroCost(missingModelId?: string): CostResult {
+  return {
+    inputCost: 0,
+    outputCost: 0,
+    cachedInputCost: 0,
+    reasoningOutputCost: 0,
+    totalCost: 0,
+    missingModelId,
   }
+}
+
+function calculateCost(metric: NormalizedSessionMetric, prices: Map<string, ModelPrice>): CostResult {
+  if (isUnknownModel(metric.model))
+    return zeroCost()
+
+  const price = prices.get(metric.model)
+  if (!price)
+    return zeroCost(metric.model)
 
   const inputCost = costForTokens(metric.inputTokens, price.input_usd_per_1m_tokens)
   const outputCost = costForTokens(metric.outputTokens, price.output_usd_per_1m_tokens)
@@ -202,14 +216,11 @@ export async function uploadSessionMetrics(
   const batchId = crypto.randomUUID()
   const missingPriceModelIds = new Set<string>()
   const normalized: Array<{ metric: NormalizedSessionMetric, cost: CostResult }> = []
-  let errorCount = 0
 
   for (const raw of parsed.sessions) {
     const metric = normalizeSessionMetric(raw, parsed.provider)
-    if (!metric) {
-      errorCount += 1
-      continue
-    }
+    if (!metric)
+      return { error: 'invalid session metrics payload' }
 
     const cost = calculateCost(metric, prices)
     if (cost.missingModelId)
@@ -315,7 +326,7 @@ export async function uploadSessionMetrics(
       insertedCount,
       updatedCount,
       0,
-      errorCount,
+      0,
     )
   })()
 
@@ -325,7 +336,7 @@ export async function uploadSessionMetrics(
     inserted_count: insertedCount,
     updated_count: updatedCount,
     skipped_count: 0,
-    error_count: errorCount,
+    error_count: 0,
     missing_price_model_ids: [...missingPriceModelIds].sort(),
   }
 }
@@ -397,7 +408,7 @@ export async function getSummaryStats(range: TimeRange) {
     models,
     missing_price_model_ids: distinctModels
       .map(row => row.model)
-      .filter(model => !priceModelIds.has(model))
+      .filter(model => !isUnknownModel(model) && !priceModelIds.has(model))
       .sort(),
   }
 }
