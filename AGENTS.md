@@ -25,8 +25,8 @@
 - 安装依赖：`bun install`。
 - 构建 CLI 并打包 Web：`bun run build`。
 - 运行 CLI：本产品正式命令为 `server`、`config`、`user create`、`login`、`upload`；模板示例命令不作为目标功能保留。
-- 前端开发：`bun run --filter @agent-telemetry/frontend dev`（本地 Vite）。
-- 后端开发：`bun run --filter @agent-telemetry/backend dev`。
+- 前端开发：`bun run --filter @agent-metry/frontend dev`（本地 Vite）。
+- 后端开发：`bun run --filter @agent-metry/backend dev`。
 - 类型检查：`bun run typecheck`。
 
 ## 编码风格与命名规范

@@ -1,4 +1,4 @@
-# Agent Telemetry Technical Design
+# Agent Metry Technical Design
 
 ## 技术栈
 
@@ -11,11 +11,11 @@
 
 `cli.js server` 启动后端服务，并由后端托管前端静态资源。
 
-核心本地目录为 `~/.agent-telemetry`。
+核心本地目录为 `~/.agent-metry`。
 
 ## 数据库设计
 
-V1 使用 SQLite，本地数据库固定为 `~/.agent-telemetry/data.db`。首次运行 `server` 时创建并初始化。服务启动时启用：
+V1 使用 SQLite，本地数据库固定为 `~/.agent-metry/data.db`。首次运行 `server` 时创建并初始化。服务启动时启用：
 
 - `PRAGMA foreign_keys = ON`
 - `PRAGMA journal_mode = WAL`
@@ -66,11 +66,11 @@ Codex session 解析只读取必要结构化字段，并构造白名单聚合数
 
 上传请求不信任客户端传入用户身份。服务端从 Bearer token 解析 `user_id`，并以 `user_id + provider + session_id` 幂等 upsert。
 
-费用由后端根据 `~/.agent-telemetry/models.json` 计算。模型价格缺失时不阻断上传和统计，记录缺失模型 id，并让前端提示管理员补充价格。
+费用由后端根据 `~/.agent-metry/models.json` 计算。模型价格缺失时不阻断上传和统计，记录缺失模型 id，并让前端提示管理员补充价格。
 
 ## 增量上传历史
 
-`~/.agent-telemetry/history.json` 记录每个已成功上传的 Codex session 文件状态：
+`~/.agent-metry/history.json` 记录每个已成功上传的 Codex session 文件状态：
 
 ```ts
 type UploadHistoryItem = {
@@ -99,7 +99,7 @@ history 仅在服务端确认上传成功后更新。
 - `cli.js user create <email> <password>` 用于初始化或管理用户，昵称默认等于邮箱。
 - 前端 Register 允许自助注册，注册时昵称默认等于邮箱。
 
-`~/.agent-telemetry/auth.json` 存储 CLI 登录获得的 `access_token` 和 `refresh_token`。
+`~/.agent-metry/auth.json` 存储 CLI 登录获得的 `access_token` 和 `refresh_token`。
 
 ## 配置与价格文件
 

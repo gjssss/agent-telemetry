@@ -53,10 +53,10 @@ async function main() {
   const webDist = `${cliDist}/web`
   const coreDist = `${cliDist}/core`
 
-  await runCommand(['bun', 'run', '--filter', '@agent-telemetry/core', 'build'], repoRoot)
-  await runCommand(['bun', 'run', '--filter', '@agent-telemetry/frontend', 'build'], repoRoot)
-  await runCommand(['bun', 'run', '--filter', '@agent-telemetry/backend', 'build'], repoRoot)
-  await runCommand(['bun', 'run', '--filter', '@agent-telemetry/cli', 'build:cli'], repoRoot)
+  await runCommand(['bun', 'run', '--filter', '@agent-metry/core', 'build'], repoRoot)
+  await runCommand(['bun', 'run', '--filter', '@agent-metry/frontend', 'build'], repoRoot)
+  await runCommand(['bun', 'run', '--filter', '@agent-metry/backend', 'build'], repoRoot)
+  await runCommand(['bun', 'run', '--filter', '@agent-metry/cli', 'build:cli'], repoRoot)
 
   await runCommand(['rm', '-rf', webDist], repoRoot)
   await runCommand(['mkdir', '-p', `${webDist}/frontend`, `${webDist}/backend`], repoRoot)

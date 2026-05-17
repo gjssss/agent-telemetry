@@ -1,7 +1,7 @@
 import { basename } from 'node:path'
 import { stat } from 'node:fs/promises'
 
-const AGENT_TELEMETRY_DIR_NAME = '.agent-telemetry'
+const AGENT_METRY_DIR_NAME = '.agent-metry'
 
 interface LocalStateOptions {
   homeDir?: string
@@ -241,14 +241,14 @@ async function directoryExists(path: string) {
 function resolveHomeDir(options: LocalStateOptions = {}) {
   const homeDir = options.homeDir ?? globalThis.Bun?.env.HOME
   if (!homeDir)
-    throw new Error('HOME is not set; cannot resolve ~/.agent-telemetry')
+    throw new Error('HOME is not set; cannot resolve ~/.agent-metry')
   return homeDir
 }
 
 function resolveHistoryPath(options: LocalStateOptions = {}) {
   return `${options.stateDir
-    ?? globalThis.Bun?.env.AGENT_TELEMETRY_HOME
-    ?? `${resolveHomeDir(options)}/${AGENT_TELEMETRY_DIR_NAME}`}/history.json`
+    ?? globalThis.Bun?.env.AGENT_METRY_HOME
+    ?? `${resolveHomeDir(options)}/${AGENT_METRY_DIR_NAME}`}/history.json`
 }
 
 async function readUploadHistory(options: LocalStateOptions = {}) {

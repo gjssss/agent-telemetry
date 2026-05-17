@@ -1,5 +1,5 @@
 {
-  "name": "@agent-telemetry/frontend",
+  "name": "@agent-metry/frontend",
   "private": true,
   "version": "2.2.1",
   "type": "module",
@@ -14,7 +14,7 @@
     "knip": "knip"
   },
   "dependencies": {
-    "@agent-telemetry/core": "workspace:*",
+    "@agent-metry/core": "workspace:*",
     "@clerk/clerk-react": "^5.58.1",
     "@hookform/resolvers": "^5.2.2",
     "@radix-ui/react-alert-dialog": "^1.1.15",

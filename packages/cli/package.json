@@ -1,11 +1,11 @@
 {
-  "name": "@agent-telemetry/cli",
+  "name": "@agent-metry/cli",
   "version": "0.1.0",
   "private": true,
-  "description": "Agent Telemetry CLI built with Bun and Vite",
+  "description": "Agent Metry CLI built with Bun and Vite",
   "type": "module",
   "bin": {
-    "agent-telemetry": "dist/cli.js"
+    "agent-metry": "dist/cli.js"
   },
   "files": [
     "dist"
@@ -21,7 +21,7 @@
     "commander": "^14.0.3"
   },
   "devDependencies": {
-    "@agent-telemetry/core": "workspace:*",
+    "@agent-metry/core": "workspace:*",
     "@types/bun": "^1.3.5",
     "typescript": "~5.9.3",
     "vite": "^7.3.1"

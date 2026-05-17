@@ -7,9 +7,9 @@ import * as schema from './db/schema'
 const port = Number(Bun.env.PORT ?? 3000)
 
 export const auth = betterAuth({
-  appName: 'Agent Telemetry',
+  appName: 'Agent Metry',
   baseURL: Bun.env.BETTER_AUTH_URL ?? `http://localhost:${port}`,
-  secret: Bun.env.BETTER_AUTH_SECRET ?? 'agent-telemetry-local-development-secret-change-me',
+  secret: Bun.env.BETTER_AUTH_SECRET ?? 'agent-metry-local-development-secret-change-me',
   database: drizzleAdapter(db, {
     provider: 'sqlite',
     schema,

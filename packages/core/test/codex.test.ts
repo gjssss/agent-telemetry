@@ -10,7 +10,7 @@ import {
 const tempDirs: string[] = []
 
 function createTempDir() {
-  const path = `${Bun.env.TMPDIR ?? '/tmp'}agent-telemetry-codex-test-${crypto.randomUUID()}`
+  const path = `${Bun.env.TMPDIR ?? '/tmp'}agent-metry-codex-test-${crypto.randomUUID()}`
   tempDirs.push(path)
   return path
 }
@@ -323,7 +323,7 @@ test('history is updated only when uploaded sessions are explicitly marked succe
 
   const initialPlan = await planDefaultCodexSessionUploads({ homeDir })
   expect(initialPlan.pending).toHaveLength(1)
-  expect(await Bun.file(`${homeDir}/.agent-telemetry/history.json`).exists()).toBe(false)
+  expect(await Bun.file(`${homeDir}/.agent-metry/history.json`).exists()).toBe(false)
 
   await markCodexSessionsUploaded(initialPlan.pending, { homeDir }, '2026-05-17T00:00:00.000Z')
 

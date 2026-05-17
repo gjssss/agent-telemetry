@@ -3,14 +3,14 @@ import { type SidebarData } from '../types'
 
 export const sidebarData: SidebarData = {
   user: {
-    name: 'Agent Telemetry',
+    name: 'Agent Metry',
     email: '',
     avatar: '',
   },
   teams: [],
   navGroups: [
     {
-      title: 'Agent Telemetry',
+      title: 'Agent Metry',
       items: [
         {
           title: '信息页',

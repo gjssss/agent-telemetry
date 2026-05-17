@@ -4,7 +4,7 @@ export interface HealthStatusPayload {
 }
 
 export function buildHealthStatusMessage() {
-  return 'Agent Telemetry backend'
+  return 'Agent Metry backend'
 }
 
 export function formatHealthStatus(payload?: HealthStatusPayload) {
@@ -21,7 +21,7 @@ export function formatHealthStatus(payload?: HealthStatusPayload) {
   }
 }
 
-export const AGENT_TELEMETRY_DIR_NAME = '.agent-telemetry'
+export const AGENT_METRY_DIR_NAME = '.agent-metry'
 export const DEFAULT_BASE_URL = 'http://localhost:3000'
 
 export interface LocalStateOptions {
@@ -178,14 +178,14 @@ export const DEFAULT_MODEL_PRICES: ModelPrice[] = [
 function resolveHomeDir(options: LocalStateOptions = {}) {
   const homeDir = options.homeDir ?? globalThis.Bun?.env.HOME
   if (!homeDir)
-    throw new Error('HOME is not set; cannot resolve ~/.agent-telemetry')
+    throw new Error('HOME is not set; cannot resolve ~/.agent-metry')
   return homeDir
 }
 
 export function resolveAgentTelemetryDir(options: LocalStateOptions = {}) {
   return options.stateDir
-    ?? globalThis.Bun?.env.AGENT_TELEMETRY_HOME
-    ?? `${resolveHomeDir(options)}/${AGENT_TELEMETRY_DIR_NAME}`
+    ?? globalThis.Bun?.env.AGENT_METRY_HOME
+    ?? `${resolveHomeDir(options)}/${AGENT_METRY_DIR_NAME}`
 }
 
 function resolveStateFile(fileName: string, options: LocalStateOptions = {}) {

@@ -21,7 +21,7 @@ export default defineConfig({
     },
     rollupOptions: {
       external: [
-        '@agent-telemetry/core',
+        '@agent-metry/core',
         'bun:sqlite',
         'hono',
         'hono/bun',
@@ -31,7 +31,7 @@ export default defineConfig({
       ],
       output: {
         paths: {
-          '@agent-telemetry/core': '../../core/index.js',
+          '@agent-metry/core': '../../core/index.js',
         },
       },
     },

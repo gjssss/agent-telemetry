@@ -5,12 +5,12 @@ import {
   type AuthState,
   type SessionMetricUpload,
   type UploadSessionsResponse,
-} from '@agent-telemetry/core'
+} from '@agent-metry/core'
 import {
   markCodexSessionsUploaded,
   planDefaultCodexSessionUploads,
   type PendingCodexSessionUpload,
-} from '@agent-telemetry/core/codex'
+} from '@agent-metry/core/codex'
 import { Command } from 'commander'
 
 const VERSION = __APP_VERSION__
@@ -163,7 +163,7 @@ async function login(email: string, password: string) {
 async function readAuthToken() {
   const auth = await authManager.read()
   if (!auth?.access_token) {
-    throw new Error('Not logged in. Run `agent-telemetry login <email> <password>` first.')
+    throw new Error('Not logged in. Run `agent-metry login <email> <password>` first.')
   }
   return auth.access_token
 }
@@ -229,8 +229,8 @@ const program = new Command()
 await configManager.ensureConfig()
 
 program
-  .name('agent-telemetry')
-  .description('Agent Telemetry CLI.')
+  .name('agent-metry')
+  .description('Agent Metry CLI.')
   .version(VERSION)
 
 program

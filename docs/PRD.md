@@ -1,8 +1,8 @@
-# Agent Telemetry PRD
+# Agent Metry PRD
 
 ## 产品定位
 
-Agent Telemetry 是一个自部署的 agent 消耗记录 App。用户通过 CLI 主动上传本机 Codex session 的非内容型聚合数据，在 Web 控制台查看个人使用概览、用户排行榜和个人资料。
+Agent Metry 是一个自部署的 agent 消耗记录 App。用户通过 CLI 主动上传本机 Codex session 的非内容型聚合数据，在 Web 控制台查看个人使用概览、用户排行榜和个人资料。
 
 第一版只支持 Codex，后续可扩展其他 provider。
 
@@ -46,7 +46,7 @@ Agent Telemetry 是一个自部署的 agent 消耗记录 App。用户通过 CLI 
 
 ## 费用与价格
 
-费用由后端计算。模型价格来自 `~/.agent-telemetry/models.json`，首次启动时写入默认价格表。
+费用由后端计算。模型价格来自 `~/.agent-metry/models.json`，首次启动时写入默认价格表。
 
 如果某个模型没有价格配置，上传和统计不能失败；后端应记录价格缺失状态，前端提示管理员补充该模型 id 的价格。
 

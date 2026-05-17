@@ -10,7 +10,7 @@ import {
 const tempDirs: string[] = []
 
 function createTempHome() {
-  const path = `${Bun.env.TMPDIR ?? '/tmp'}agent-telemetry-test-${crypto.randomUUID()}`
+  const path = `${Bun.env.TMPDIR ?? '/tmp'}agent-metry-test-${crypto.randomUUID()}`
   tempDirs.push(path)
   return path
 }
@@ -26,7 +26,7 @@ test('ensureConfig creates config.json with default base_url in an isolated home
   const config = await configManager.ensureConfig({ homeDir })
 
   expect(config.base_url).toBe(DEFAULT_BASE_URL)
-  expect(await Bun.file(`${homeDir}/.agent-telemetry/config.json`).json()).toEqual({
+  expect(await Bun.file(`${homeDir}/.agent-metry/config.json`).json()).toEqual({
     base_url: DEFAULT_BASE_URL,
   })
 })
@@ -71,7 +71,7 @@ test('models manager creates default OpenAI and Claude prices', async () => {
   expect(modelIds).toContain('gpt-5.4-mini')
   expect(modelIds).toContain('claude-opus-4-7')
   expect(modelIds).toContain('claude-sonnet-4-5')
-  expect(await Bun.file(`${homeDir}/.agent-telemetry/models.json`).exists()).toBe(true)
+  expect(await Bun.file(`${homeDir}/.agent-metry/models.json`).exists()).toBe(true)
 })
 
 test('auth and history managers persist and reload state', async () => {

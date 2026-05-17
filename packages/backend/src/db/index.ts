@@ -5,10 +5,10 @@ import { Database } from 'bun:sqlite'
 import { drizzle } from 'drizzle-orm/bun-sqlite'
 import * as schema from './schema'
 
-const DEFAULT_DATA_DIR = join(homedir(), '.agent-telemetry')
+const DEFAULT_DATA_DIR = join(homedir(), '.agent-metry')
 
 export function resolveDataDir() {
-  return Bun.env.AGENT_TELEMETRY_HOME || DEFAULT_DATA_DIR
+  return Bun.env.AGENT_METRY_HOME || DEFAULT_DATA_DIR
 }
 
 export function resolveDatabasePath() {

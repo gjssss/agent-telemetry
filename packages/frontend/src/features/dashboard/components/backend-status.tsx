@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import {
   type HealthStatusPayload,
   formatHealthStatus,
-} from '@agent-telemetry/core'
+} from '@agent-metry/core'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 
 async function fetchBackendStatus(): Promise<HealthStatusPayload> {

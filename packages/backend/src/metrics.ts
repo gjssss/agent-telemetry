@@ -4,8 +4,8 @@ import type {
   UploadProvider,
   UploadSessionsRequest,
   UploadSessionsResponse,
-} from '@agent-telemetry/core'
-import { modelsManager } from '@agent-telemetry/core'
+} from '@agent-metry/core'
+import { modelsManager } from '@agent-metry/core'
 import { sql } from 'drizzle-orm'
 import { db, resolveDataDir, sqlite } from './db'
 import { user } from './db/schema'

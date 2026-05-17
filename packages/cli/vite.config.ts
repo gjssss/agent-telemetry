@@ -16,15 +16,15 @@ export default defineConfig({
     },
     rollupOptions: {
       external: [
-        '@agent-telemetry/core',
-        '@agent-telemetry/core/codex',
+        '@agent-metry/core',
+        '@agent-metry/core/codex',
         'commander',
       ],
       output: {
         banner: '#!/usr/bin/env bun',
         paths: {
-          '@agent-telemetry/core': './core/index.js',
-          '@agent-telemetry/core/codex': './core/codex.js'
+          '@agent-metry/core': './core/index.js',
+          '@agent-metry/core/codex': './core/codex.js'
         }
       }
     },

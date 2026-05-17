@@ -19,7 +19,7 @@
     "baseUrl": ".",
     "paths": {
       "@/*": ["./src/*"],
-      "@agent-telemetry/core": ["../core/src/index.ts"]
+      "@agent-metry/core": ["../core/src/index.ts"]
     },
 
     /* Linting */

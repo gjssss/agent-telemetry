@@ -18,7 +18,7 @@ import { SignOutDialog } from '@/components/sign-out-dialog'
 export function ProfileDropdown() {
   const [open, setOpen] = useDialogState()
   const user = useAuthStore((state) => state.auth.user)
-  const name = user?.name ?? 'Agent Telemetry'
+  const name = user?.name ?? 'Agent Metry'
   const email = user?.email ?? ''
   const fallback = (name || email || 'AT').slice(0, 2).toUpperCase()
 

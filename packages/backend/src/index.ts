@@ -1,4 +1,4 @@
-import { buildHealthStatusMessage } from '@agent-telemetry/core'
+import { buildHealthStatusMessage } from '@agent-metry/core'
 import { isAPIError } from 'better-auth/api'
 import { Hono } from 'hono'
 import { serveStatic } from 'hono/bun'
