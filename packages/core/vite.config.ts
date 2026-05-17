@@ -6,11 +6,17 @@ export default defineConfig({
   build: {
     target: 'es2022',
     lib: {
-      entry: `${rootDir}/src/index.ts`,
+      entry: {
+        index: `${rootDir}/src/index.ts`,
+        codex: `${rootDir}/src/codex.ts`,
+      },
       formats: ['es'],
-      fileName: () => 'index.js',
+      fileName: (_format, entryName) => `${entryName}.js`,
     },
     minify: false,
+    rollupOptions: {
+      external: [/^node:/],
+    },
     sourcemap: true,
   },
 })

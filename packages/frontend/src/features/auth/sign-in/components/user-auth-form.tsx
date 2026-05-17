@@ -2,12 +2,11 @@ import { useState } from 'react'
 import { z } from 'zod'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { Link, useNavigate } from '@tanstack/react-router'
-import { Loader2, LogIn } from 'lucide-react'
+import { useNavigate } from '@tanstack/react-router'
+import { Loader2, LogIn, UserPlus } from 'lucide-react'
 import { toast } from 'sonner'
-import { IconFacebook, IconGithub } from '@/assets/brand-icons'
 import { useAuthStore } from '@/stores/auth-store'
-import { sleep, cn } from '@/lib/utils'
+import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import {
   Form,
@@ -40,6 +39,8 @@ export function UserAuthForm({
   ...props
 }: UserAuthFormProps) {
   const [isLoading, setIsLoading] = useState(false)
+  const [isRegistering, setIsRegistering] = useState(false)
+  const [serverError, setServerError] = useState<string | null>(null)
   const navigate = useNavigate()
   const { auth } = useAuthStore()
 
@@ -51,34 +52,114 @@ export function UserAuthForm({
     },
   })
 
-  function onSubmit(data: z.infer<typeof formSchema>) {
-    setIsLoading(true)
-
-    toast.promise(sleep(2000), {
-      loading: 'Signing in...',
-      success: () => {
-        setIsLoading(false)
-
-        // Mock successful authentication with expiry computed at success time
-        const mockUser = {
-          accountNo: 'ACC001',
-          email: data.email,
-          role: ['user'],
-          exp: Date.now() + 24 * 60 * 60 * 1000, // 24 hours from now
-        }
-
-        // Set user and access token
-        auth.setUser(mockUser)
-        auth.setAccessToken('mock-access-token')
-
-        // Redirect to the stored location or default to dashboard
-        const targetPath = redirectTo || '/'
-        navigate({ to: targetPath, replace: true })
-
-        return `Welcome back, ${data.email}!`
-      },
-      error: 'Error',
+  async function loadCurrentUser() {
+    const response = await fetch('/api/me', {
+      credentials: 'include',
     })
+
+    if (!response.ok) {
+      throw new Error('Unable to load current user.')
+    }
+
+    const result = (await response.json()) as {
+      session?: { expiresAt?: string }
+      user?: { id: string; email: string; name?: string | null }
+    }
+
+    if (!result.user) {
+      throw new Error('Unable to load current user.')
+    }
+
+    auth.setUser({
+      id: result.user.id,
+      email: result.user.email,
+      name: result.user.name ?? result.user.email,
+      role: ['user'],
+      exp: result.session?.expiresAt
+        ? new Date(result.session.expiresAt).getTime()
+        : Date.now() + 24 * 60 * 60 * 1000,
+    })
+    auth.setAccessToken('cookie-session')
+  }
+
+  async function signIn(data: z.infer<typeof formSchema>) {
+    const response = await fetch('/api/auth/sign-in/email', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify(data),
+    })
+
+    if (!response.ok) {
+      const result = (await response.json().catch(() => null)) as {
+        message?: string
+        error?: string
+      } | null
+      throw new Error(result?.message ?? result?.error ?? 'Sign in failed.')
+    }
+  }
+
+  async function register(data: z.infer<typeof formSchema>) {
+    const response = await fetch('/api/auth/sign-up/email', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({
+        email: data.email,
+        password: data.password,
+        name: data.email,
+      }),
+    })
+
+    if (!response.ok) {
+      const result = (await response.json().catch(() => null)) as {
+        message?: string
+        error?: string
+        code?: string
+      } | null
+      const message = result?.message ?? result?.error ?? ''
+      const alreadyExists =
+        result?.code === 'USER_ALREADY_EXISTS' ||
+        /already|exist|taken|duplicate/i.test(message)
+      throw new Error(
+        alreadyExists
+          ? 'This email is already registered.'
+          : message || 'Register failed.'
+      )
+    }
+  }
+
+  async function handleAuth(
+    data: z.infer<typeof formSchema>,
+    mode: 'sign-in' | 'register'
+  ) {
+    setIsLoading(true)
+    setIsRegistering(mode === 'register')
+    setServerError(null)
+
+    try {
+      if (mode === 'register') {
+        await register(data)
+      } else {
+        await signIn(data)
+      }
+
+      await loadCurrentUser()
+      navigate({ to: redirectTo || '/', replace: true })
+      toast.success(mode === 'register' ? 'Account created.' : 'Signed in.')
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : 'Authentication failed.'
+      setServerError(message)
+      toast.error(message)
+    } finally {
+      setIsLoading(false)
+      setIsRegistering(false)
+    }
+  }
+
+  function onSubmit(data: z.infer<typeof formSchema>) {
+    void handleAuth(data, 'sign-in')
   }
 
   return (
@@ -111,37 +192,35 @@ export function UserAuthForm({
                 <PasswordInput placeholder='********' {...field} />
               </FormControl>
               <FormMessage />
-              <Link
-                to='/forgot-password'
-                className='absolute end-0 -top-0.5 text-sm font-medium text-muted-foreground hover:opacity-75'
-              >
-                Forgot password?
-              </Link>
             </FormItem>
           )}
         />
-        <Button className='mt-2' disabled={isLoading}>
-          {isLoading ? <Loader2 className='animate-spin' /> : <LogIn />}
-          Sign in
-        </Button>
-
-        <div className='relative my-2'>
-          <div className='absolute inset-0 flex items-center'>
-            <span className='w-full border-t' />
-          </div>
-          <div className='relative flex justify-center text-xs uppercase'>
-            <span className='bg-background px-2 text-muted-foreground'>
-              Or continue with
-            </span>
-          </div>
-        </div>
-
-        <div className='grid grid-cols-2 gap-2'>
-          <Button variant='outline' type='button' disabled={isLoading}>
-            <IconGithub className='h-4 w-4' /> GitHub
+        {serverError && (
+          <p className='rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive'>
+            {serverError}
+          </p>
+        )}
+        <div className='mt-2 grid gap-2 sm:grid-cols-2'>
+          <Button disabled={isLoading}>
+            {isLoading && !isRegistering ? (
+              <Loader2 className='animate-spin' />
+            ) : (
+              <LogIn />
+            )}
+            Sign in
           </Button>
-          <Button variant='outline' type='button' disabled={isLoading}>
-            <IconFacebook className='h-4 w-4' /> Facebook
+          <Button
+            type='button'
+            variant='outline'
+            disabled={isLoading}
+            onClick={form.handleSubmit((data) => handleAuth(data, 'register'))}
+          >
+            {isLoading && isRegistering ? (
+              <Loader2 className='animate-spin' />
+            ) : (
+              <UserPlus />
+            )}
+            Register
           </Button>
         </div>
       </form>

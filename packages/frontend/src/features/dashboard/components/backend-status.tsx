@@ -1,13 +1,16 @@
 import { useQuery } from '@tanstack/react-query'
-import { type BackendStatusPayload, formatBackendStatus } from '@agent-telemetry/core'
+import {
+  type HealthStatusPayload,
+  formatHealthStatus,
+} from '@agent-telemetry/core'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 
-async function fetchBackendStatus(): Promise<BackendStatusPayload> {
-  const response = await fetch('/api/hello')
+async function fetchBackendStatus(): Promise<HealthStatusPayload> {
+  const response = await fetch('/api/health')
   if (!response.ok) {
     throw new Error('Failed to fetch backend status')
   }
-  return response.json() as Promise<BackendStatusPayload>
+  return response.json() as Promise<HealthStatusPayload>
 }
 
 export function BackendStatus() {
@@ -30,7 +33,7 @@ export function BackendStatus() {
   }
 
   if (data) {
-    const formatted = formatBackendStatus(data)
+    const formatted = formatHealthStatus(data)
     title = formatted.title
     subtitle = formatted.subtitle
   }

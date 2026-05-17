@@ -2,7 +2,10 @@ import { useState } from 'react'
 import { z } from 'zod'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { IconFacebook, IconGithub } from '@/assets/brand-icons'
+import { useNavigate } from '@tanstack/react-router'
+import { Loader2 } from 'lucide-react'
+import { toast } from 'sonner'
+import { useAuthStore } from '@/stores/auth-store'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import {
@@ -38,6 +41,9 @@ export function SignUpForm({
   ...props
 }: React.HTMLAttributes<HTMLFormElement>) {
   const [isLoading, setIsLoading] = useState(false)
+  const [serverError, setServerError] = useState<string | null>(null)
+  const navigate = useNavigate()
+  const { auth } = useAuthStore()
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -48,14 +54,71 @@ export function SignUpForm({
     },
   })
 
-  function onSubmit(data: z.infer<typeof formSchema>) {
+  async function onSubmit(data: z.infer<typeof formSchema>) {
     setIsLoading(true)
-    // eslint-disable-next-line no-console
-    console.log(data)
+    setServerError(null)
 
-    setTimeout(() => {
+    try {
+      const response = await fetch('/api/auth/sign-up/email', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          email: data.email,
+          password: data.password,
+          name: data.email,
+        }),
+      })
+
+      if (!response.ok) {
+        const result = (await response.json().catch(() => null)) as {
+          message?: string
+          error?: string
+          code?: string
+        } | null
+        const message = result?.message ?? result?.error ?? ''
+        const alreadyExists =
+          result?.code === 'USER_ALREADY_EXISTS' ||
+          /already|exist|taken|duplicate/i.test(message)
+        throw new Error(
+          alreadyExists
+            ? 'This email is already registered.'
+            : message || 'Register failed.'
+        )
+      }
+
+      const currentUserResponse = await fetch('/api/me', {
+        credentials: 'include',
+      })
+      const currentUser = (await currentUserResponse.json()) as {
+        session?: { expiresAt?: string }
+        user?: { id: string; email: string; name?: string | null }
+      }
+
+      if (!currentUser.user) {
+        throw new Error('Unable to load current user.')
+      }
+
+      auth.setUser({
+        id: currentUser.user.id,
+        email: currentUser.user.email,
+        name: currentUser.user.name ?? currentUser.user.email,
+        role: ['user'],
+        exp: currentUser.session?.expiresAt
+          ? new Date(currentUser.session.expiresAt).getTime()
+          : Date.now() + 24 * 60 * 60 * 1000,
+      })
+      auth.setAccessToken('cookie-session')
+      toast.success('Account created.')
+      navigate({ to: '/', replace: true })
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : 'Register failed.'
+      setServerError(message)
+      toast.error(message)
+    } finally {
       setIsLoading(false)
-    }, 3000)
+    }
   }
 
   return (
@@ -105,38 +168,14 @@ export function SignUpForm({
           )}
         />
         <Button className='mt-2' disabled={isLoading}>
+          {isLoading && <Loader2 className='animate-spin' />}
           Create Account
         </Button>
-
-        <div className='relative my-2'>
-          <div className='absolute inset-0 flex items-center'>
-            <span className='w-full border-t' />
-          </div>
-          <div className='relative flex justify-center text-xs uppercase'>
-            <span className='bg-background px-2 text-muted-foreground'>
-              Or continue with
-            </span>
-          </div>
-        </div>
-
-        <div className='grid grid-cols-2 gap-2'>
-          <Button
-            variant='outline'
-            className='w-full'
-            type='button'
-            disabled={isLoading}
-          >
-            <IconGithub className='h-4 w-4' /> GitHub
-          </Button>
-          <Button
-            variant='outline'
-            className='w-full'
-            type='button'
-            disabled={isLoading}
-          >
-            <IconFacebook className='h-4 w-4' /> Facebook
-          </Button>
-        </div>
+        {serverError && (
+          <p className='rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive'>
+            {serverError}
+          </p>
+        )}
       </form>
     </Form>
   )
